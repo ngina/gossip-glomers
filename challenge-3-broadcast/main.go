@@ -4,19 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
 
 type server struct {
-	n      *maelstrom.Node
-	values []any
+	n         *maelstrom.Node
+	valuesMap map[float64]bool // stores messages received from broadcast
 	neighbors []any
+	mu        sync.Mutex // Go maps are not safe for concurrent writes
 }
 
 func main() {
 	n := maelstrom.NewNode()
-	s := &server{n: n}
+	s := &server{
+		n:         n,
+		valuesMap: make(map[float64]bool), // prevent assignment to entry in nil map
+	}
 	n.Handle("broadcast", s.broadcast)
 	n.Handle("read", s.read)
 	n.Handle("topology", s.topology)
@@ -27,29 +32,41 @@ func main() {
 }
 
 func (s *server) broadcast(msg maelstrom.Message) error {
+	log.Printf("Received broadcast from %s with message %v", msg.Src, msg)
+
 	var body map[string]any
 	if err := json.Unmarshal(msg.Body, &body); err != nil {
 		return err
 	}
-	s.values = append(s.values, body["message"])
+	message := body["message"].(float64) // numbers decoded from JSON are always float64
 	msg_id := body["msg_id"]
 
-	// Asynchronously replicate message to neighbor nodes
-	for _, neighbor := range s.neighbors {
-		if msg.Src != neighbor {
-			sendMsgBody := map[string]any{
-				"type": "broadcast",
-				"message": body["message"],
-				"msg_id":  msg_id,
-			}
-			err := s.n.Send(neighbor.(string), sendMsgBody)
-			if err != nil {
-				return err
+	// Synchronize access to values map.
+	s.mu.Lock()
+	_, ok := s.valuesMap[message]
+	if !ok {
+		s.valuesMap[message] = true
+	}
+	s.mu.Unlock()
+
+	// Synchronously replicate message to neighbor nodes, if it did not exist in map
+	if !ok {
+		for _, neighbor := range s.neighbors {
+			if msg.Src != neighbor {
+
+				sendMsgBody := map[string]any{
+					"type":    "broadcast",
+					"message": body["message"],
+					"msg_id":  msg_id,
+				}
+				err := s.n.Send(neighbor.(string), sendMsgBody) // blocking call
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
 
-	// Respond to request
 	responseBody := map[string]any{
 		"type":        "broadcast_ok",
 		"msg_id":      msg_id,
@@ -64,9 +81,13 @@ func (s *server) read(msg maelstrom.Message) error {
 		return err
 	}
 
+	var values []float64
+	for k := range s.valuesMap {
+		values = append(values, k)
+	}
 	responseBody := map[string]any{
 		"type":        "read_ok",
-		"messages":    s.values,
+		"messages":    values,
 		"msg_id":      body["msg_id"],
 		"in_reply_to": body["msg_id"],
 	}
