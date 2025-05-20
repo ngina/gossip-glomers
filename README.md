@@ -11,6 +11,9 @@ TODO
 
 ### Challenge #3b: Single-Node Broadcast
 
+#### What is the high-level goal of this challenge?
+Implement all three handlers: `broadcast`, `read`, `topology`
+
 ### Challenge #3b: Multi-Node Broadcast
 
 #### What is the high-level goal of this challenge?
@@ -22,12 +25,17 @@ Make sure all nodes eventually see all broadcasted values, using reliable propag
 2. Broadcasting to all neighbors except the sender of the message: When a node receives a "broadcast" message, I asynchronously broadcast using Send(dest, responseBody) to all neighbors except the node that matches the sender, if it exists.
 
 #### Results:
-Tests passed but I notice repeated values in the node state ie `node.values`. This suggests messages are being sent and re-sent to neighboring nodes. I'm thinking some dedupe logic is needed here but yet to figure out how to fix it.
+Update: Tests pass without duplicate values
+Previously, tests passed but nodes contained repeated broadcast messages, indicating that messages were being re-broadcast to neighbors.  
+Introduced deduplication logic using message as the deduplication key to ensure each value is stored only once.
+
+~~Tests passed but I notice repeated values in the node state ie `node.values`. This suggests messages are being sent and re-sent to neighboring nodes. I'm thinking some dedupe logic is needed here but yet to figure out how to fix it.~~
 
 **Viewing Network Requests/Responses:** Each test run will generate a svg of all the network requests sent. You can view this at `store/latest/messages.svg`. Found it very helpful to see the network requests and responses to nodes, which helped me detect bugs much easier.
 
 #### Next Steps:
-1. Fix repeated node values.
+1. Make message_id unique: Currently the same message_id is used across different broadcasts (from different nodes), and only message is used as a deduplication key.
+~~1. Fix repeated node values.~~
 
 
 ### References
