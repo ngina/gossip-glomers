@@ -74,7 +74,7 @@ Make sure all nodes eventually see all broadcasted values, using reliable propag
 - **Tests pass without duplicate values:**
 Previously, tests passed but nodes contained repeated broadcast message values, suggesting messages were being re-broadcast without deduplication. Fixed this by introducing deduplication logic, using the message as the deduplication key to ensure each value is stored only once.
 
-~~ - Tests passed but I noticed repeated values in the node state (i.e., `node.values`). This suggested that messages were being re-sent to neighboring nodes. I suspected deduplication logic was needed but hadn’t implemented it yet.~~
+~~- Tests passed but I noticed repeated values in the node state (i.e., `node.values`). This suggested that messages were being re-sent to neighboring nodes. I suspected deduplication logic was needed but hadn’t implemented it yet.~~
 
 #### Next Steps
 - [ ] Make `message_id` unique: Currently the same `message_id` is reused across broadcasts from different nodes.
