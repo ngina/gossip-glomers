@@ -1,3 +1,4 @@
 # Ignore maelstrom build files
 maelstrom/
 maelstrom.tar.bz2
+store/
